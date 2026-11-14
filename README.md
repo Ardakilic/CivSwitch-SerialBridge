@@ -72,7 +72,7 @@ Needs Docker only (no compose file — run one command per send). Build once:
 docker build -t civswitch-sender .
 ```
 
-`SERIAL_PORT` / `SERIAL_URL` env vars override `--port`. Payload files live on your host, so mount them (image `WORKDIR` is `/app`).
+Port order: `--port`, then `SERIAL_URL`, then `SERIAL_PORT`, then auto-detect. Payload files live on your host, so mount them (image `WORKDIR` is `/app`).
 
 Linux: pass the USB device through. Prefer the stable `/dev/serial/by-id/...` path:
 
@@ -83,14 +83,14 @@ docker run --rm --device=/dev/ttyUSB0:/dev/ttyUSB0 --group-add dialout -v $(pwd)
 Windows: Docker can't pass `COMx` through. Expose the port over TCP on the host with [usbipd-win](https://github.com/dorssel/usbipd-win) or a ser2net/socat bridge, e.g.:
 
 ```sh
-socat TCP-LISTEN:5000,fork,reuseaddr FILE:\\.\COM3,raw,b115200
+socat TCP-LISTEN:5000,fork,max-children=1,reuseaddr FILE:\\.\COM3,raw,echo=0,b115200
 docker run --rm --add-host=host.docker.internal:host-gateway -e SERIAL_URL=socket://host.docker.internal:5000 -v ${PWD}:/payloads civswitch-sender 192.168.4.2 /payloads/payload.js
 ```
 
 macOS: `/dev/cu.*` can't be passed through either. Bridge it on the host, then use `SERIAL_URL` mode:
 
 ```sh
-socat TCP-LISTEN:5000,reuseaddr,fork FILE:/dev/cu.usbserial-0001,raw,b115200
+socat TCP-LISTEN:5000,reuseaddr,fork,max-children=1 FILE:/dev/cu.usbserial-0001,raw,echo=0,b115200
 docker run --rm --add-host=host.docker.internal:host-gateway -e SERIAL_URL=socket://host.docker.internal:5000 -v $(pwd):/payloads civswitch-sender 192.168.4.2 /payloads/payload.js
 ```
 
