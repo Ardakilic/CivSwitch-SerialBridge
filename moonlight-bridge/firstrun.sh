@@ -2,34 +2,34 @@
 #
 # First-boot bootstrap for the CivSwitch Moonlight bridge (Raspberry Pi OS Bookworm).
 #
-# Runs ONCE on a fresh Pi, installs the whole bridge, then removes itself so it
-# never runs again. This is the "flash, plug in, walk away" path — no SSH, no
-# keyboard, no monitor.
+# Runs ONCE on a fresh Pi, then hands off to a one-shot service that finishes the
+# install on the next (normal) boot. This is the "flash, plug in, walk away" path
+# — no SSH, no keyboard, no monitor.
+#
+# Why two stages: the systemd.run phase runs before NetworkManager, so there is
+# no internet to `apt-get install` from. Stage 1 (this script) only does local
+# work (create user, enable SSH, copy the bundled files, install a one-shot
+# service) and then reboots; stage 2 runs on the next boot once the network is
+# up and does the real install (apt + AP + firewall + spoof).
 #
 # To use it:
-#   1. Flash Raspberry Pi OS Lite (Bookworm) to the SD card.
+#   1. Flash Raspberry Pi OS Lite (Bookworm — the "Legacy" track) to the SD card.
 #   2. Mount the small FAT "bootfs" partition and copy this file to its root.
 #   3. Copy the whole `moonlight-bridge/` folder next to it, so you end up with
 #        <bootfs>/firstrun.sh
 #        <bootfs>/moonlight-bridge/setup.sh
-#      (that's <bootfs>/firmware/... if you mount the whole-card image).
 #   4. Append this to <bootfs>/cmdline.txt on a single line:
 #        systemd.run=/boot/firmware/firstrun.sh systemd.run_success_action=reboot systemd.unit=kernel-command-line.target
 #   5. Unmount, eject, put the card in the Pi, plug in Ethernet + power.
 #
-# On first boot the script runs, sets up the bridge, and reboots. After the
-# reboot the Pi comes up as the bridge (AP + firewall + spoof) on its own.
-# Everything it does is logged to /var/log/civswitch-moonlight-firstrun.log.
-#
-# NOTE: this needs the Pi's Ethernet to reach the internet (to install packages)
-# during first boot. The reliable "test it first" path is still Imager + SSH +
-# setup.sh — see README, "Flashing a fresh Pi & testing".
+# Logs:  stage 1 -> /var/log/civswitch-moonlight-firstrun.log
+#        stage 2 -> /var/log/civswitch-moonlight-firstboot.log
 #
 # NOTE: targets Bookworm's `systemd` first-boot. The current "Raspberry Pi OS"
 # default is Trixie (cloud-init) — this script won't run there; flash the
 # "Legacy" Bookworm image instead.
 
-set -ex
+set -x
 exec > /var/log/civswitch-moonlight-firstrun.log 2>&1
 
 # ── Config (set these before flashing) ─────────────────────────────
@@ -44,12 +44,13 @@ for d in /boot/firmware /boot; do
     BOOT="$d"; break
   fi
 done
-[ -n "$BOOT" ] || { echo "ERROR: boot partition not found"; exit 1; }
 
 SRC="$BOOT/moonlight-bridge"
-[ -f "$SRC/setup.sh" ] || { echo "ERROR: $SRC/setup.sh not found"; exit 1; }
+DEST="/opt/civswitch-moonlight-src"
+SERVICE="civswitch-moonlight-firstboot.service"
 
-# Enable SSH and create the first user (so you can log in afterwards).
+# Enable SSH and create the first user (so you can log in afterwards). These
+# run even if everything below fails, so the Pi is never bricked.
 if [ "${ENABLE_SSH:-0}" = "1" ]; then
   systemctl enable ssh 2>/dev/null || true
 fi
@@ -60,34 +61,61 @@ if [ -n "$FIRST_USER" ] && ! id -u "$FIRST_USER" >/dev/null 2>&1; then
   fi
 fi
 
-# Under systemd.run, NetworkManager hasn't started yet — bring eth0 up manually
-# and wait for an internet path (apt needs it).
-ip link set eth0 up
-if command -v dhclient >/dev/null 2>&1; then
-  dhclient -1 eth0 2>/dev/null || true
-elif command -v dhcpcd >/dev/null 2>&1; then
-  dhcpcd -q eth0 2>/dev/null || true
+# Stage 1: copy the bundled files somewhere stable, and install a one-shot
+# service that runs setup.sh on the next (normal, networked) boot.
+rc=1
+if [ -n "$BOOT" ] && [ -f "$SRC/setup.sh" ]; then
+  mkdir -p "$DEST"
+  cp -r "$SRC"/. "$DEST"/
+  chmod +x "$DEST/setup.sh"
+
+  # Wrapper that runs setup.sh then removes itself so it only runs once.
+  cat > "$DEST/run-setup.sh" <<'EOF'
+#!/bin/bash
+set -x
+exec > /var/log/civswitch-moonlight-firstboot.log 2>&1
+/opt/civswitch-moonlight-src/setup.sh
+rc=$?
+if [ "$rc" -eq 0 ]; then
+  systemctl disable civswitch-moonlight-firstboot.service || true
+  rm -f /etc/systemd/system/civswitch-moonlight-firstboot.service || true
+  systemctl daemon-reload || true
+fi
+echo "CivSwitch Moonlight bridge first-boot setup done (rc=$rc)."
+exit 0
+EOF
+  chmod +x "$DEST/run-setup.sh"
+
+  cat > "/etc/systemd/system/$SERVICE" <<EOF
+[Unit]
+Description=CivSwitch Moonlight bridge first-boot setup
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=$DEST/run-setup.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable "$SERVICE"
+  rc=0
+else
+  echo "ERROR: boot partition not found, or $SRC/setup.sh missing"
 fi
 
-for _ in $(seq 1 90); do
-  if ip -4 addr show dev eth0 2>/dev/null | grep -q 'inet ' \
-     && apt-get update -qq >/dev/null 2>&1; then
-    break
+# Remove ourselves so stage 1 only runs once (and undo the cmdline hook). Always
+# do this so the Pi reboots into a normal boot even if something above failed.
+if [ -n "$BOOT" ]; then
+  rm -f "$BOOT/firstrun.sh"
+  if [ -f "$BOOT/cmdline.txt" ]; then
+    sed -i 's| systemd\.run[^ ]*||g; s| systemd\.run_success_action[^ ]*||g; s| systemd\.unit=kernel-command-line\.target||g' "$BOOT/cmdline.txt"
   fi
-  sleep 2
-done
-
-# Run the real setup from a stable copy.
-DEST="/opt/civswitch-moonlight-src"
-mkdir -p "$DEST"
-cp -r "$SRC"/. "$DEST"/
-chmod +x "$DEST/setup.sh"
-"$DEST/setup.sh"
-
-# Remove ourselves so this only runs once (and undo the cmdline hook).
-rm -f "$BOOT/firstrun.sh"
-if [ -f "$BOOT/cmdline.txt" ]; then
-  sed -i 's| systemd\.run[^ ]*||g; s| systemd\.run_success_action[^ ]*||g; s| systemd\.unit=kernel-command-line\.target||g' "$BOOT/cmdline.txt"
 fi
 
-echo "CivSwitch Moonlight bridge first-boot setup complete."
+echo "CivSwitch Moonlight bridge first-boot stage 1 complete (rc=$rc)."
+exit 0
