@@ -24,9 +24,18 @@
 # NOTE: this needs the Pi's Ethernet to reach the internet (to install packages)
 # during first boot. The reliable "test it first" path is still Imager + SSH +
 # setup.sh — see README, "Flashing a fresh Pi & testing".
+#
+# NOTE: targets Bookworm's `systemd` first-boot. The current "Raspberry Pi OS"
+# default is Trixie (cloud-init) — this script won't run there; flash the
+# "Legacy" Bookworm image instead.
 
 set -ex
 exec > /var/log/civswitch-moonlight-firstrun.log 2>&1
+
+# ── Config (set these before flashing) ─────────────────────────────
+FIRST_USER=""          # username to create on first boot (empty = leave as-is)
+FIRST_PASSWORD=""      # its password (only used if FIRST_USER is set)
+ENABLE_SSH=1           # 1 = enable SSH on first boot
 
 # The FAT boot partition is at /boot/firmware on Bookworm (/boot on older OSes).
 BOOT=""
@@ -39,6 +48,17 @@ done
 
 SRC="$BOOT/moonlight-bridge"
 [ -f "$SRC/setup.sh" ] || { echo "ERROR: $SRC/setup.sh not found"; exit 1; }
+
+# Enable SSH and create the first user (so you can log in afterwards).
+if [ "${ENABLE_SSH:-0}" = "1" ]; then
+  systemctl enable ssh 2>/dev/null || true
+fi
+if [ -n "$FIRST_USER" ] && ! id -u "$FIRST_USER" >/dev/null 2>&1; then
+  useradd -m -G sudo,adm,dialout,audio,video,plugdev,games,users,render,input,netdev,gpio,i2c,spi "$FIRST_USER" || true
+  if [ -n "$FIRST_PASSWORD" ]; then
+    echo "$FIRST_USER:$FIRST_PASSWORD" | chpasswd || true
+  fi
+fi
 
 # Under systemd.run, NetworkManager hasn't started yet — bring eth0 up manually
 # and wait for an internet path (apt needs it).

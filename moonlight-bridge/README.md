@@ -65,7 +65,7 @@ Two ways to get this onto a blank microSD card. Use the first for your first tes
 
 ### Option 1 — Imager + one command (recommended)
 
-1. Flash **Raspberry Pi OS Lite (32-bit) — Bookworm** with the [Raspberry Pi Imager](https://www.raspberrypi.com/software/).
+1. Flash **Raspberry Pi OS Lite — Bookworm** with the [Raspberry Pi Imager](https://www.raspberrypi.com/software/). In the Imager this is the *Legacy* track (currently "Raspberry Pi OS (Legacy, 64-bit) Lite"). The default "Raspberry Pi OS" image is now Debian Trixie; the automatic `firstrun.sh` path (Option 2) targets Bookworm's `systemd` first-boot, not Trixie's cloud-init.
 2. In the Imager's OS Customization screen (Ctrl/Cmd+Shift+X): set a hostname, set a username + password, and turn on **SSH**. Leave Wi-Fi empty — the Pi's Wi-Fi becomes the Switch's AP.
 3. Boot the Pi with Ethernet plugged into your home router, wait a minute, then connect:
 
@@ -87,7 +87,7 @@ sudo ~/moonlight-bridge/setup.sh
 
 ### Option 2 — fully automatic first boot (no SSH)
 
-Drop [`firstrun.sh`](firstrun.sh) plus the `moonlight-bridge/` folder onto the boot partition and add the `systemd.run=` line to `cmdline.txt` — full steps are in the header of `firstrun.sh`. The Pi installs the bridge on its first boot, then reboots into it. (Needs the Pi's Ethernet to reach the internet during that first boot.)
+Drop [`firstrun.sh`](firstrun.sh) plus the `moonlight-bridge/` folder onto the boot partition and add the `systemd.run=` line to `cmdline.txt` — full steps are in the header of `firstrun.sh`. The Pi installs the bridge on its first boot, then reboots into it. Needs the Pi's Ethernet to reach the internet during that first boot, and a Bookworm (Legacy) image — Trixie uses cloud-init, which this script doesn't target.
 
 ### How to test
 
