@@ -53,11 +53,31 @@ The firewall is a persistent systemd service, so it re-applies the same rules on
 
 ## Requirements
 
-- Raspberry Pi 3 / 4 / 5 / Zero 2 W (onboard Wi-Fi) running Raspberry Pi OS **Bookworm**. A Pi 4/5 is recommended for 5 GHz (see Config).
+- Raspberry Pi 3 B+ / 4 / 5 / Zero 2 W (onboard Wi-Fi) running Raspberry Pi OS **Bookworm**. For streaming, use a **5 GHz model (Pi 4/5)** — the 2.4 GHz-only boards (3 B+, Zero 2 W) work but are bandwidth-limited. See "Which Raspberry Pi?" below.
 - The Pi's Ethernet plugged into your home router (the uplink).
 - A Sunshine host (PC) on the same home LAN.
 - Moonlight (homebrew) on the Switch.
 - A way to control the Pi: Ethernet/SSH, or keyboard + monitor. Once the Pi is the AP, its Wi-Fi belongs to the Switch, not your LAN.
+
+## Which Raspberry Pi? (2.4 vs 5 GHz)
+
+The bridge is the same scripts on every Pi — the only thing that changes is the Wi-Fi band, which decides how well Moonlight streams.
+
+| Pi model | Wi-Fi | Verdict |
+|---|---|---|
+| Pi 5 | 2.4 + 5 GHz | ✅ Best |
+| Pi 4 / Pi 400 | 2.4 + 5 GHz | ✅ Recommended |
+| Pi 3 B+ | 2.4 GHz only | ⚠️ Works, but 2.4 GHz caps streaming (fine for testing the bridge) |
+| Zero 2 W | 2.4 GHz only | ⚠️ Works, 2.4 GHz only |
+
+Moonlight needs real bandwidth, and 2.4 GHz tops out around ~20–40 Mbps (roughly 720p). 5 GHz (Pi 4/5) is what you want for smooth 1080p.
+
+Set the band at the top of `setup.sh`:
+
+- **5 GHz models (Pi 4 / 5 / 400):** `AP_BAND="a"` and `AP_CHANNEL=36`
+- **2.4 GHz models (Pi 3 B+ / Zero 2 W):** keep `AP_BAND="bg"` and `AP_CHANNEL=6`
+
+> There are no separate releases per Pi model — the scripts are universal and one Raspberry Pi OS image boots them all. You only change the one `AP_BAND` line for your board.
 
 ## Flashing a fresh Pi & testing
 
