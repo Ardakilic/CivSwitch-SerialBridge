@@ -87,6 +87,10 @@ Windows: Docker can't pass `COMx` through. For the `socket://` sender below, exp
 socat TCP-LISTEN:5000,fork,max-children=1,reuseaddr FILE:\\.\COM3,raw,echo=0,b115200
 docker run --rm --add-host=host.docker.internal:host-gateway -e SERIAL_URL=socket://host.docker.internal:5000 -v "${PWD}:/payloads" civswitch-sender 192.168.4.2 /payloads/payload.js
 ```
+Git Bash: disable MSYS path conversion and pass a Windows host path (container path unchanged):
+```sh
+MSYS_NO_PATHCONV=1 docker run --rm --add-host=host.docker.internal:host-gateway -e SERIAL_URL=socket://host.docker.internal:5000 -v "$(pwd -W):/payloads" civswitch-sender 192.168.4.2 /payloads/payload.js
+```
 Separate workflow: [usbipd-win](https://github.com/dorssel/usbipd-win) attaches the USB device to the Desktop VM for `--device` use instead of `socket://`.
 Git Bash/Cygwin: Bash strips backslashes — use `FILE:/dev/ttyS2,raw,echo=0,b115200` for COM3 instead.
 

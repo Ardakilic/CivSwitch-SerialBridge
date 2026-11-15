@@ -49,11 +49,13 @@ def find_esp32_port():
 
 
 def send_via_serial(serial_port, switch_ip, switch_port, js_code):
-    ser = serial.serial_for_url(serial_port, 115200, timeout=1, write_timeout=5)
+    payload = js_code.encode("utf-8")
+    # 115200 8N1 ~11520 B/s; scale timeout with payload so large sends don't false-timeout.
+    write_timeout = max(5, len(payload) / 11520 + 10)
+    ser = serial.serial_for_url(serial_port, 115200, timeout=1, write_timeout=write_timeout)
     time.sleep(0.5)
     ser.reset_input_buffer()
 
-    payload = js_code.encode("utf-8")
     cmd = f"SEND {switch_ip} {switch_port} {len(payload)}\n"
     try:
         ser.write(cmd.encode())
