@@ -53,8 +53,11 @@ if ! ip link show "$ETH_IF" >/dev/null 2>&1; then
 fi
 
 echo "== Installing packages (dnsmasq, python3, nftables) =="
-apt-get update
-apt-get install -y dnsmasq python3 nftables
+# A fresh Pi has no RTC battery, so its clock can be days behind and apt will
+# reject the repo Release files as "not valid yet". Retry with the date check
+# disabled (the clock syncs on its own via NTP shortly after).
+apt-get update || apt-get -o Acquire::Check-Valid-Until=false update
+apt-get install -y dnsmasq python3 nftables iw
 
 PYTHON3="$(command -v python3)"
 NFT="$(command -v nft)"
@@ -63,14 +66,16 @@ NFT="$(command -v nft)"
 read -r AP_SUBNET NETMASK < <(python3 - "$AP_IP" "$AP_PREFIX" <<'PY'
 import ipaddress, sys
 net = ipaddress.ip_network(f"{sys.argv[1]}/{sys.argv[2]}", strict=False)
-print(net.with_prefixlen)
-print(net.netmask)
+print(net.with_prefixlen, net.netmask)
 PY
 )
 
 echo "== Setting the Wi-Fi country (required for the AP) =="
 if command -v raspi-config >/dev/null 2>&1; then
-  raspi-config nonint do_wlan_country "$WLAN_COUNTRY" || true
+  # do_wifi_country is the current name; do_wlan_country was the older one.
+  raspi-config nonint do_wifi_country "$WLAN_COUNTRY" 2>/dev/null \
+    || raspi-config nonint do_wlan_country "$WLAN_COUNTRY" 2>/dev/null \
+    || true
 fi
 
 echo "== Creating the AP in NetworkManager =="
