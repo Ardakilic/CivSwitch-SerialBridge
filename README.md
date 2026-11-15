@@ -101,6 +101,10 @@ No ESP32? The [Pi version](pi-bridge) runs the whole bridge on a Raspberry Pi â€
 
 Connecting the Switch handheld straight to a Linux box over USB-Ethernet (no dock, no Wi-Fi)? The [Linux bridge](linux-bridge) gives the wired interface a static IP, runs a catch-all DNS, and spoofs Nintendo's connectivity-check on `:80` so the console joins the wired link without a captive-portal popup. The connectivity-check responses are adapted from [90DNS](https://github.com/Thesola10/90dns) (GPL-2.0-or-later) via [fernando-granco/switch2-homebrew](https://github.com/fernando-granco/switch2-homebrew) (MIT), same as the ESP32 and Pi builds.
 
+## Moonlight bridge
+
+Want to stream Moonlight from a Sunshine host on your home LAN to an air-gapped Switch? The [Moonlight bridge](moonlight-bridge) routes between the Switch's Wi-Fi and your home LAN through a default-deny firewall, so the Switch reaches only the Sunshine PC and never the internet.
+
 ## License
 
 MIT
