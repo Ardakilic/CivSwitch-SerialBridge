@@ -4,9 +4,9 @@ Stream Moonlight from a Sunshine host on your home LAN to a Switch that is **sti
 
 This is a fourth variant, alongside the [ESP32](../esp32-bridge), [Pi](../pi-bridge), and [Linux](../linux-bridge) builds. It reuses the Pi build's AP, catch-all DNS, and connectivity spoof, and adds IP forwarding + a locked-down firewall for the one thing the Switch is allowed to reach: the Sunshine PC.
 
-## ⚠️ Untested
+## ⚠️ Tested (minimally)
 
-Same status as the [Pi build](../pi-bridge): written but **not yet tested on real hardware**. It targets Raspberry Pi OS **Bookworm** (which uses NetworkManager). If you try it and something breaks, open an issue — happy to fix it.
+Tested on a **Pi 3 B+ (2.4 GHz)**: the connectivity spoof (no captive-portal popup), the air-gap firewall, and Moonlight add-by-IP pairing all worked end-to-end. That's the only board it's been run on so far, and 2.4 GHz limits streaming bandwidth — see "Which Raspberry Pi?" below for the 5 GHz recommendation. It targets Raspberry Pi OS **Bookworm** (which uses NetworkManager). If something breaks on your setup, open an issue.
 
 ## Why
 
