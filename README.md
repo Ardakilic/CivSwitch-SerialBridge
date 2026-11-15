@@ -86,10 +86,11 @@ Windows: Docker can't pass `COMx` through. Expose the port over TCP on the host 
 socat TCP-LISTEN:5000,fork,max-children=1,reuseaddr FILE:\\.\COM3,raw,echo=0,b115200
 docker run --rm --add-host=host.docker.internal:host-gateway -e SERIAL_URL=socket://host.docker.internal:5000 -v ${PWD}:/payloads civswitch-sender 192.168.4.2 /payloads/payload.js
 ```
+Git Bash/Cygwin: Bash strips backslashes — use `FILE:/dev/ttyS2,raw,echo=0,b115200` for COM3 instead.
 
 Firewall: the listener is on all interfaces — keep port 5000 blocked from LAN and kill socat after the send. No `bind=` here: the container arrives via the bridge gateway, not loopback, so `bind=127.0.0.1` would break it.
 
-macOS: `/dev/cu.*` can't be passed through either. Bridge it on the host, then use `SERIAL_URL` mode:
+macOS: Docker Desktop has no official USB passthrough (use USB/IP per Docker docs). OrbStack may pass an existing node via `--device`, but the `/dev/cu.*` name changes per plug and fails when unplugged — the TCP bridge below is the reliable path:
 
 ```sh
 socat TCP-LISTEN:5000,reuseaddr,fork,max-children=1 FILE:/dev/cu.usbserial-0001,raw,echo=0,b115200
