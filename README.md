@@ -87,12 +87,16 @@ socat TCP-LISTEN:5000,fork,max-children=1,reuseaddr FILE:\\.\COM3,raw,echo=0,b11
 docker run --rm --add-host=host.docker.internal:host-gateway -e SERIAL_URL=socket://host.docker.internal:5000 -v ${PWD}:/payloads civswitch-sender 192.168.4.2 /payloads/payload.js
 ```
 
+Firewall: the listener is on all interfaces — keep port 5000 blocked from LAN and kill socat after the send. No `bind=` here: the container arrives via the bridge gateway, not loopback, so `bind=127.0.0.1` would break it.
+
 macOS: `/dev/cu.*` can't be passed through either. Bridge it on the host, then use `SERIAL_URL` mode:
 
 ```sh
 socat TCP-LISTEN:5000,reuseaddr,fork,max-children=1 FILE:/dev/cu.usbserial-0001,raw,echo=0,b115200
 docker run --rm --add-host=host.docker.internal:host-gateway -e SERIAL_URL=socket://host.docker.internal:5000 -v $(pwd):/payloads civswitch-sender 192.168.4.2 /payloads/payload.js
 ```
+
+Firewall: same as Windows — listener is on all interfaces, keep port 5000 blocked from LAN and kill socat after the send.
 
 For dev on Mac/Windows, native `pip install -r requirements.txt` is usually simpler.
 
