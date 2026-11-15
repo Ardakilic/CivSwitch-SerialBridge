@@ -24,6 +24,7 @@ AP_SSID="Switch2Moonlight"
 AP_PASSWORD=""               # empty = open network; set a WPA2 passphrase (8+ chars) to secure it
 AP_BAND="bg"                 # "bg" = 2.4 GHz (any Pi); "a" = 5 GHz (Pi 4/5 — better for streaming)
 AP_CHANNEL=6
+WLAN_COUNTRY="US"            # Wi-Fi regulatory domain — required for the AP to start
 AP_IP="192.168.4.1"          # Pi's address on the Switch's Wi-Fi network
 AP_PREFIX=24
 DHCP_START="192.168.4.2"     # Switch usually lands here
@@ -66,6 +67,11 @@ print(net.with_prefixlen)
 print(net.netmask)
 PY
 )
+
+echo "== Setting the Wi-Fi country (required for the AP) =="
+if command -v raspi-config >/dev/null 2>&1; then
+  raspi-config nonint do_wlan_country "$WLAN_COUNTRY" || true
+fi
 
 echo "== Creating the AP in NetworkManager =="
 nmcli con del "$CON_NAME" 2>/dev/null || true

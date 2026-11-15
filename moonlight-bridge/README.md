@@ -59,6 +59,45 @@ The firewall is a persistent systemd service, so it re-applies the same rules on
 - Moonlight (homebrew) on the Switch.
 - A way to control the Pi: Ethernet/SSH, or keyboard + monitor. Once the Pi is the AP, its Wi-Fi belongs to the Switch, not your LAN.
 
+## Flashing a fresh Pi & testing
+
+Two ways to get this onto a blank microSD card. Use the first for your first test — it's the reliable one. The second is fully automatic once you trust the build.
+
+### Option 1 — Imager + one command (recommended)
+
+1. Flash **Raspberry Pi OS Lite (32-bit) — Bookworm** with the [Raspberry Pi Imager](https://www.raspberrypi.com/software/).
+2. In the Imager's OS Customization screen (Ctrl/Cmd+Shift+X): set a hostname, set a username + password, and turn on **SSH**. Leave Wi-Fi empty — the Pi's Wi-Fi becomes the Switch's AP.
+3. Boot the Pi with Ethernet plugged into your home router, wait a minute, then connect:
+
+```sh
+ssh <user>@<hostname>.local
+```
+
+4. Get the code onto the Pi and run it. Until the repo is pushed, copy the folder over with `scp`; once it's pushed, clone instead:
+
+```sh
+# before the code is pushed:
+scp -r moonlight-bridge/ <user>@<hostname>.local:~/
+
+# on the Pi:
+sudo ~/moonlight-bridge/setup.sh
+```
+
+`setup.sh` sets the Wi-Fi country automatically, so the AP comes up with no extra steps.
+
+### Option 2 — fully automatic first boot (no SSH)
+
+Drop [`firstrun.sh`](firstrun.sh) plus the `moonlight-bridge/` folder onto the boot partition and add the `systemd.run=` line to `cmdline.txt` — full steps are in the header of `firstrun.sh`. The Pi installs the bridge on its first boot, then reboots into it. (Needs the Pi's Ethernet to reach the internet during that first boot.)
+
+### How to test
+
+1. The AP (`Switch2Moonlight`) should appear.
+2. Join from the Switch — it should connect with **no captive-portal popup**.
+3. In Moonlight, add your Sunshine PC **by IP** and confirm it pairs (see above) and streams.
+4. Confirm the air-gap: the Switch can reach the Sunshine PC but nothing else — the eShop / browser should not load.
+
+> Pi 3 B+ is 2.4 GHz only — fine for proving the bridge works, but expect limited streaming bandwidth vs a Pi 4/5 at 5 GHz.
+
 ## Install
 
 ```sh
