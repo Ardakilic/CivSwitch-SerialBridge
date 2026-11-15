@@ -93,14 +93,12 @@ Two ways to get this onto a blank microSD card. Use the first for your first tes
 ssh <user>@<hostname>.local
 ```
 
-4. Get the code onto the Pi and run it. Until the repo is pushed, copy the folder over with `scp`; once it's pushed, clone instead:
+4. Get the code onto the Pi and run it:
 
 ```sh
-# before the code is pushed:
-scp -r moonlight-bridge/ <user>@<hostname>.local:~/
-
-# on the Pi:
-sudo ~/moonlight-bridge/setup.sh
+git clone https://github.com/jackspence7/CivSwitch-SerialBridge.git
+cd CivSwitch-SerialBridge/moonlight-bridge
+sudo ./setup.sh
 ```
 
 `setup.sh` sets the Wi-Fi country automatically, so the AP comes up with no extra steps.
